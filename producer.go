@@ -61,7 +61,7 @@ func New(config *Config) *Producer {
 // When unrecoverable error has detected(e.g: trying to put to in a stream that
 // doesn't exist), the message will returned by the Producer.
 // Add a listener with `Producer.NotifyFailures` to handle undeliverable messages.
-func (p *Producer) Put(data []byte, partitionKey string) error {
+func (p *Producer) Put(data []byte, partitionKey string, explicitHashKey uint64) error {
 	p.RLock()
 	stopped := p.stopped
 	p.RUnlock()
@@ -77,10 +77,12 @@ func (p *Producer) Put(data []byte, partitionKey string) error {
 	nbytes := len(data) + len([]byte(partitionKey))
 	// if the record size is bigger than aggregation size
 	// handle it as a simple kinesis record
+	explicitHashKeyString := string(explicitHashKey)
 	if nbytes > p.AggregateBatchSize {
 		p.records <- &kinesis.PutRecordsRequestEntry{
-			Data:         data,
-			PartitionKey: &partitionKey,
+			Data:            data,
+			PartitionKey:    &partitionKey,
+			ExplicitHashKey: &explicitHashKeyString,
 		}
 	} else {
 		p.RLock()
@@ -96,7 +98,7 @@ func (p *Producer) Put(data []byte, partitionKey string) error {
 				p.Logger.Error("drain aggregator", err)
 			}
 		}
-		p.aggregator.Put(data, partitionKey)
+		p.aggregator.Put(data, partitionKey, explicitHashKey)
 		p.Unlock()
 		// release the lock and then pipe the record to the records channel
 		// we did it, because the "send" operation blocks when the backlog is full

@@ -30,7 +30,7 @@ func (a *Aggregator) Count() int {
 }
 
 // Put record using `data` and `partitionKey`. This method is thread-safe.
-func (a *Aggregator) Put(data []byte, partitionKey string) {
+func (a *Aggregator) Put(data []byte, partitionKey string, explicitHashKey uint64) {
 	// For now, all records in the aggregated record will have
 	// the same partition key.
 	// later, we will add shard-mapper same as the KPL use.
@@ -41,8 +41,9 @@ func (a *Aggregator) Put(data []byte, partitionKey string) {
 	}
 	keyIndex := uint64(len(a.pkeys) - 1)
 	a.buf = append(a.buf, &Record{
-		Data:              data,
-		PartitionKeyIndex: &keyIndex,
+		Data:                 data,
+		PartitionKeyIndex:    &keyIndex,
+		ExplicitHashKeyIndex: &explicitHashKey,
 	})
 	a.nbytes += len(data)
 }
